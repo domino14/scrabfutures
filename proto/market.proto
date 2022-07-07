@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package market;
+option go_package = "github.com/domino14/scrabfutures/rpc/proto";
+
+message Market {
+  string id = 1;
+  string description = 2;
+  string date_created = 3; // RFC3339
+  string date_closed = 4;
+  bool is_open = 5;
+}
+
+message Security {
+  string id = 1;
+  string description = 2;
+  string shortname = 3;
+  string date_created = 4;
+  string market_id = 5;
+  double shares_outstanding = 6;
+  double last_price = 7;
+}
+
+message Order {
+  string id = 1;
+  string username = 2;
+  string security_id = 3;
+  string security_shortname = 4;
+  double amount = 5; // how many securities
+  double cost = 6;   // total cost (negative if sale)
+  string date_created = 7;
+}
+
+message Portfolio {
+  string username = 1;
+  double tokens = 2;
+  repeated Security securities = 3;
+}
+
+message GetOrderBookRequest {
+  string market_id = 1;
+  string security_id = 2;
+  string username = 3;
+  string since_date = 4;
+  int32 limit = 5;
+}
+
+message OrderBookResponse { repeated Order orders = 1; }
+
+message SecurityRequest {
+  enum BuyOrSell {
+    BUY = 0;
+    SELL = 1;
+  }
+  BuyOrSell buy_or_sell = 1;
+  double amount = 2;
+  string security_id = 3;
+  string market_id = 4;
+}
+
+message MarketActionResponse { double cost = 1; }
+
+message ResolveMarketRequest { string market_id = 1; }
+
+message ResolveMarketResponse {}
+
+message GetOpenMarketsRequest {}
+
+message GetOpenMarketsResponse { Market markets = 1; }
+
+message GetPortfolioRequest {}
+message GetPortfolioResponse { Portfolio portfolio = 1; }
+
+message GetSecurityCostsRequest {
+  string security_id = 1;
+  string begin_date = 2;
+  string end_date = 3;
+}
+
+message GetSecurityCostsResponse {
+  message SecurityCost {
+    string date = 1;
+    double cost = 2;
+  }
+  repeated SecurityCost costs = 1;
+}
+
+service MarketService {
+  rpc GetOrderBook(GetOrderBookRequest) returns (OrderBookResponse);
+  rpc GetOpenMarkets(GetOpenMarketsRequest) returns (GetOpenMarketsResponse);
+  rpc BuySecurity(SecurityRequest) returns (MarketActionResponse);
+  rpc SellSecurity(SecurityRequest) returns (MarketActionResponse);
+  rpc GetPortfolio(GetPortfolioRequest) returns (GetPortfolioResponse);
+  rpc GetSecurityCosts(GetSecurityCostsRequest)
+      returns (GetSecurityCostsResponse);
+  // This one will involve a big transaction:
+  rpc ResolveMarket(ResolveMarketRequest) returns (ResolveMarketResponse);
+}
