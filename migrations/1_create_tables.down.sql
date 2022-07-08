@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS markets;
 DROP TABLE IF EXISTS securities;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS portfolio_securities;
-DROP TABLE IF EXISTS portfolio;
+DROP TABLE IF EXISTS portfolios;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS security_costs;
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lithammer/shortuuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
 
@@ -17,6 +18,10 @@ import (
 
 type SqliteStore struct {
 	db *sql.DB
+}
+
+func now() string {
+	return time.Now().Format(time.RFC3339)
 }
 
 func NewSqliteStore(dbName string) (*SqliteStore, error) {
@@ -135,8 +140,20 @@ func (s *SqliteStore) GetOpenMarkets(ctx context.Context) ([]*pb.Market, error) 
 
 func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 	securityUUID, marketUUID string, amount float64, buy bool) error {
+	// this function is too long. simplify.
+	if amount <= 0 {
+		return errors.New("amount must be positive")
+	}
 
 	marketID, err := s.dbid(ctx, "markets", "uuid", marketUUID)
+	if err != nil {
+		return err
+	}
+	userID, err := s.dbid(ctx, "users", "username", username)
+	if err != nil {
+		return err
+	}
+	securityID, err := s.dbid(ctx, "securities", "uuid", securityUUID)
 	if err != nil {
 		return err
 	}
@@ -149,6 +166,8 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 
 	conn.ExecContext(ctx, "BEGIN EXCLUSIVE TRANSACTION;")
 	defer conn.ExecContext(ctx, "ROLLBACK;")
+
+	orderTime := now()
 
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT uuid, shares_outstanding
@@ -184,17 +203,90 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 	}
 
 	cost := lmsr.TradeCost(lmsr.Liquidity, amount, allShares, myIdx)
+	var heldTokens float64
+	err = s.db.QueryRowContext(ctx, `
+		SELECT tokens FROM portfolios WHERE user_id = ?`,
+		userID).Scan(&heldTokens)
+	if err != nil {
+		return err
+	}
+	var heldSecurities float64
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT amount FROM portfolio_securities 
+		WHERE user_id = ? AND security_id = ?`,
+		userID, securityUUID).Scan(&heldSecurities); err != nil {
+		if err == sql.ErrNoRows {
+			// this is ok, and not an error. ignore for now; we
+			// simply don't own this security yet.
+		} else {
+			return err
+		}
+	}
 
-	// 1. deduct `cost` tokens from user's portfolio
-	//    - if we can't, fail
-	//    - if cost is negative, we're selling - fail if we don't have this
-	//      number of securities
-	// 2. add order to order book
-	// 3. calculate new price for this share (allShares has new breakdown)
-	// 4. add to portfolio_securities
-	// 5. update security_costs
+	if cost > 0 {
+		if amount < 0 {
+			return errors.New("unexpected amount - negative")
+		}
+		if heldTokens < cost {
+			return errors.New("not enough tokens for this transaction")
+		}
 
-	// meat
+	} else if cost < 0 {
+		if amount > 0 {
+			return errors.New("unexpected amount - positive")
+		}
+		if heldSecurities < -amount {
+			return errors.New("cannot sell more securities than we own")
+		}
 
-	conn.ExecContext(ctx, "COMMIT;")
+	}
+
+	// update tokens
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE portfolios 
+		SET tokens = ?
+		WHERE user_id = ?`, heldTokens-cost, userID)
+	if err != nil {
+		return err
+	}
+	// update held securities
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE portfolio_securities 
+		SET amount = ? 
+		WHERE user_id = ? AND security_id = ?`,
+		heldSecurities+amount, userID, securityID)
+	if err != nil {
+		return err
+	}
+
+	// add order to order book
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO orders (uuid, user_id, security_id, amount, cost, date)
+		VALUES(?, ?, ?, ?, ?, ?)`,
+		shortuuid.New(), userID, securityID, amount, cost, orderTime)
+	if err != nil {
+		return err
+	}
+	// calculate new price for this share.
+	newPrice := lmsr.Price(lmsr.Liquidity, allShares[myIdx], allShares)
+	// update security price log
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE security_costs
+		SET cost = ?, date = ?
+		WHERE security_id = ?
+	`, newPrice, orderTime, securityID)
+	if err != nil {
+		return err
+	}
+	// update shares_outstanding / last_price in securities table
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE securities 
+		SET shares_outstanding = ?, last_price = ?
+		WHERE id = ?`, allShares[myIdx], newPrice, securityID)
+	if err != nil {
+		return err
+	}
+	// and commit the transaction. phew.
+	_, err = conn.ExecContext(ctx, "COMMIT;")
+	return err
 }

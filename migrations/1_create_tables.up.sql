@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS portfolio_securities (
     FOREIGN KEY (security_id) REFERENCES securities(id)
 );
 
+-- a log of all the prices for a security.
 CREATE TABLE IF NOT EXISTS security_costs (
     security_id INTEGER,
     cost REAL,
@@ -54,7 +55,7 @@ CREATE TABLE IF NOT EXISTS security_costs (
 
 CREATE INDEX IF NOT EXISTS security_costs_date_index ON security_costs(date);
 
-CREATE TABLE IF NOT EXISTS portfolio (
+CREATE TABLE IF NOT EXISTS portfolios (
     user_id INTEGER,
     tokens REAL,
     FOREIGN KEY (user_id) REFERENCES users(id)
