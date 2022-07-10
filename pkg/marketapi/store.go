@@ -144,7 +144,6 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 	if amount <= 0 {
 		return errors.New("amount must be positive")
 	}
-
 	marketID, err := s.dbid(ctx, "markets", "uuid", marketUUID)
 	if err != nil {
 		return err
@@ -169,7 +168,7 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 
 	orderTime := now()
 
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := conn.QueryContext(ctx, `
 		SELECT uuid, shares_outstanding
 		FROM securities
 		WHERE market_id = ? 
@@ -179,8 +178,10 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 	}
 
 	allShares := []float64{}
+	allShareUUIDs := []string{}
 	myIdx := -1
 	rc := 0
+	defer rows.Close()
 	for rows.Next() {
 		var shares float64
 		var uuid string
@@ -192,6 +193,7 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 			myIdx = rc
 		}
 		allShares = append(allShares, shares)
+		allShareUUIDs = append(allShareUUIDs, uuid)
 		rc += 1
 	}
 	if myIdx == -1 {
@@ -204,20 +206,22 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 
 	cost := lmsr.TradeCost(lmsr.Liquidity, amount, allShares, myIdx)
 	var heldTokens float64
-	err = s.db.QueryRowContext(ctx, `
+	err = conn.QueryRowContext(ctx, `
 		SELECT tokens FROM portfolios WHERE user_id = ?`,
 		userID).Scan(&heldTokens)
 	if err != nil {
 		return err
 	}
 	var heldSecurities float64
-	if err := s.db.QueryRowContext(ctx, `
+	alreadyOwned := true
+	if err := conn.QueryRowContext(ctx, `
 		SELECT amount FROM portfolio_securities 
 		WHERE user_id = ? AND security_id = ?`,
 		userID, securityUUID).Scan(&heldSecurities); err != nil {
 		if err == sql.ErrNoRows {
 			// this is ok, and not an error. ignore for now; we
 			// simply don't own this security yet.
+			alreadyOwned = false
 		} else {
 			return err
 		}
@@ -242,7 +246,7 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 	}
 
 	// update tokens
-	_, err = s.db.ExecContext(ctx, `
+	_, err = conn.ExecContext(ctx, `
 		UPDATE portfolios 
 		SET tokens = ?
 		WHERE user_id = ?`, heldTokens-cost, userID)
@@ -250,43 +254,57 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 		return err
 	}
 	// update held securities
-	_, err = s.db.ExecContext(ctx, `
+	if alreadyOwned {
+		_, err = conn.ExecContext(ctx, `
 		UPDATE portfolio_securities 
 		SET amount = ? 
 		WHERE user_id = ? AND security_id = ?`,
-		heldSecurities+amount, userID, securityID)
-	if err != nil {
-		return err
+			heldSecurities+amount, userID, securityID)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = conn.ExecContext(ctx, `
+		INSERT INTO portfolio_securities(amount, user_id, security_id)
+		VALUES(?, ?, ?)
+	`, amount, userID, securityID)
+		if err != nil {
+			return err
+		}
 	}
 
 	// add order to order book
-	_, err = s.db.ExecContext(ctx, `
+	_, err = conn.ExecContext(ctx, `
 		INSERT INTO orders (uuid, user_id, security_id, amount, cost, date)
 		VALUES(?, ?, ?, ?, ?, ?)`,
 		shortuuid.New(), userID, securityID, amount, cost, orderTime)
 	if err != nil {
 		return err
 	}
-	// calculate new price for this share.
-	newPrice := lmsr.Price(lmsr.Liquidity, allShares[myIdx], allShares)
-	// update security price log
-	_, err = s.db.ExecContext(ctx, `
-		UPDATE security_costs
-		SET cost = ?, date = ?
-		WHERE security_id = ?
-	`, newPrice, orderTime, securityID)
-	if err != nil {
-		return err
+	// calculate new price for all shares in this market.
+	for idx := range allShares {
+		np := lmsr.Price(lmsr.Liquidity, allShares, idx)
+		// update security price log
+		_, err = conn.ExecContext(ctx, `
+			INSERT INTO security_costs(security_id, cost, date)
+			VALUES(?, ?, ?)
+			`, allShareUUIDs[idx], np, orderTime)
+		if err != nil {
+			return err
+		}
+
+		_, err = conn.ExecContext(ctx, `
+			UPDATE securities 
+			SET shares_outstanding = ?, last_price = ?
+			WHERE uuid = ?`, allShares[idx], np, allShareUUIDs[idx])
+		if err != nil {
+			return err
+		}
+
 	}
-	// update shares_outstanding / last_price in securities table
-	_, err = s.db.ExecContext(ctx, `
-		UPDATE securities 
-		SET shares_outstanding = ?, last_price = ?
-		WHERE id = ?`, allShares[myIdx], newPrice, securityID)
-	if err != nil {
-		return err
-	}
+
 	// and commit the transaction. phew.
 	_, err = conn.ExecContext(ctx, "COMMIT;")
+
 	return err
 }

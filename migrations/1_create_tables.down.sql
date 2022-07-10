@@ -10,3 +10,4 @@ DROP INDEX IF EXISTS security_costs_date_index;
 DROP INDEX IF EXISTS markets_uuid_index;
 DROP INDEX IF EXISTS securities_uuid_index;
 DROP INDEX IF EXISTS orders_uuid_index;
+DROP INDEX IF EXISTS user_security_uniq;

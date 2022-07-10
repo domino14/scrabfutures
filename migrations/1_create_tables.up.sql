@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS portfolio_securities (
     FOREIGN KEY (security_id) REFERENCES securities(id)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS user_security_uniq ON portfolio_securities(user_id, security_id);
+
 -- a log of all the prices for a security.
 CREATE TABLE IF NOT EXISTS security_costs (
     security_id INTEGER,
