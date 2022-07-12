@@ -44,9 +44,6 @@ type MarketService interface {
 	GetPortfolio(context.Context, *GetPortfolioRequest) (*GetPortfolioResponse, error)
 
 	GetSecurityCosts(context.Context, *GetSecurityCostsRequest) (*GetSecurityCostsResponse, error)
-
-	// This one will involve a big transaction:
-	ResolveMarket(context.Context, *ResolveMarketRequest) (*ResolveMarketResponse, error)
 }
 
 // =============================
@@ -55,7 +52,7 @@ type MarketService interface {
 
 type marketServiceProtobufClient struct {
 	client      HTTPClient
-	urls        [7]string
+	urls        [6]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -83,14 +80,13 @@ func NewMarketServiceProtobufClient(baseURL string, client HTTPClient, opts ...t
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "market", "MarketService")
-	urls := [7]string{
+	urls := [6]string{
 		serviceURL + "GetOrderBook",
 		serviceURL + "GetOpenMarkets",
 		serviceURL + "BuySecurity",
 		serviceURL + "SellSecurity",
 		serviceURL + "GetPortfolio",
 		serviceURL + "GetSecurityCosts",
-		serviceURL + "ResolveMarket",
 	}
 
 	return &marketServiceProtobufClient{
@@ -377,59 +373,13 @@ func (c *marketServiceProtobufClient) callGetSecurityCosts(ctx context.Context, 
 	return out, nil
 }
 
-func (c *marketServiceProtobufClient) ResolveMarket(ctx context.Context, in *ResolveMarketRequest) (*ResolveMarketResponse, error) {
-	ctx = ctxsetters.WithPackageName(ctx, "market")
-	ctx = ctxsetters.WithServiceName(ctx, "MarketService")
-	ctx = ctxsetters.WithMethodName(ctx, "ResolveMarket")
-	caller := c.callResolveMarket
-	if c.interceptor != nil {
-		caller = func(ctx context.Context, req *ResolveMarketRequest) (*ResolveMarketResponse, error) {
-			resp, err := c.interceptor(
-				func(ctx context.Context, req interface{}) (interface{}, error) {
-					typedReq, ok := req.(*ResolveMarketRequest)
-					if !ok {
-						return nil, twirp.InternalError("failed type assertion req.(*ResolveMarketRequest) when calling interceptor")
-					}
-					return c.callResolveMarket(ctx, typedReq)
-				},
-			)(ctx, req)
-			if resp != nil {
-				typedResp, ok := resp.(*ResolveMarketResponse)
-				if !ok {
-					return nil, twirp.InternalError("failed type assertion resp.(*ResolveMarketResponse) when calling interceptor")
-				}
-				return typedResp, err
-			}
-			return nil, err
-		}
-	}
-	return caller(ctx, in)
-}
-
-func (c *marketServiceProtobufClient) callResolveMarket(ctx context.Context, in *ResolveMarketRequest) (*ResolveMarketResponse, error) {
-	out := new(ResolveMarketResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
-	if err != nil {
-		twerr, ok := err.(twirp.Error)
-		if !ok {
-			twerr = twirp.InternalErrorWith(err)
-		}
-		callClientError(ctx, c.opts.Hooks, twerr)
-		return nil, err
-	}
-
-	callClientResponseReceived(ctx, c.opts.Hooks)
-
-	return out, nil
-}
-
 // =========================
 // MarketService JSON Client
 // =========================
 
 type marketServiceJSONClient struct {
 	client      HTTPClient
-	urls        [7]string
+	urls        [6]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -457,14 +407,13 @@ func NewMarketServiceJSONClient(baseURL string, client HTTPClient, opts ...twirp
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "market", "MarketService")
-	urls := [7]string{
+	urls := [6]string{
 		serviceURL + "GetOrderBook",
 		serviceURL + "GetOpenMarkets",
 		serviceURL + "BuySecurity",
 		serviceURL + "SellSecurity",
 		serviceURL + "GetPortfolio",
 		serviceURL + "GetSecurityCosts",
-		serviceURL + "ResolveMarket",
 	}
 
 	return &marketServiceJSONClient{
@@ -751,52 +700,6 @@ func (c *marketServiceJSONClient) callGetSecurityCosts(ctx context.Context, in *
 	return out, nil
 }
 
-func (c *marketServiceJSONClient) ResolveMarket(ctx context.Context, in *ResolveMarketRequest) (*ResolveMarketResponse, error) {
-	ctx = ctxsetters.WithPackageName(ctx, "market")
-	ctx = ctxsetters.WithServiceName(ctx, "MarketService")
-	ctx = ctxsetters.WithMethodName(ctx, "ResolveMarket")
-	caller := c.callResolveMarket
-	if c.interceptor != nil {
-		caller = func(ctx context.Context, req *ResolveMarketRequest) (*ResolveMarketResponse, error) {
-			resp, err := c.interceptor(
-				func(ctx context.Context, req interface{}) (interface{}, error) {
-					typedReq, ok := req.(*ResolveMarketRequest)
-					if !ok {
-						return nil, twirp.InternalError("failed type assertion req.(*ResolveMarketRequest) when calling interceptor")
-					}
-					return c.callResolveMarket(ctx, typedReq)
-				},
-			)(ctx, req)
-			if resp != nil {
-				typedResp, ok := resp.(*ResolveMarketResponse)
-				if !ok {
-					return nil, twirp.InternalError("failed type assertion resp.(*ResolveMarketResponse) when calling interceptor")
-				}
-				return typedResp, err
-			}
-			return nil, err
-		}
-	}
-	return caller(ctx, in)
-}
-
-func (c *marketServiceJSONClient) callResolveMarket(ctx context.Context, in *ResolveMarketRequest) (*ResolveMarketResponse, error) {
-	out := new(ResolveMarketResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
-	if err != nil {
-		twerr, ok := err.(twirp.Error)
-		if !ok {
-			twerr = twirp.InternalErrorWith(err)
-		}
-		callClientError(ctx, c.opts.Hooks, twerr)
-		return nil, err
-	}
-
-	callClientResponseReceived(ctx, c.opts.Hooks)
-
-	return out, nil
-}
-
 // ============================
 // MarketService Server Handler
 // ============================
@@ -911,9 +814,6 @@ func (s *marketServiceServer) ServeHTTP(resp http.ResponseWriter, req *http.Requ
 		return
 	case "GetSecurityCosts":
 		s.serveGetSecurityCosts(ctx, resp, req)
-		return
-	case "ResolveMarket":
-		s.serveResolveMarket(ctx, resp, req)
 		return
 	default:
 		msg := fmt.Sprintf("no handler for path %q", req.URL.Path)
@@ -2002,7 +1902,1719 @@ func (s *marketServiceServer) serveGetSecurityCostsProtobuf(ctx context.Context,
 	callResponseSent(ctx, s.hooks)
 }
 
-func (s *marketServiceServer) serveResolveMarket(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+func (s *marketServiceServer) ServiceDescriptor() ([]byte, int) {
+	return twirpFileDescriptor0, 0
+}
+
+func (s *marketServiceServer) ProtocGenTwirpVersion() string {
+	return "v8.1.2"
+}
+
+// PathPrefix returns the base service path, in the form: "/<prefix>/<package>.<Service>/"
+// that is everything in a Twirp route except for the <Method>. This can be used for routing,
+// for example to identify the requests that are targeted to this service in a mux.
+func (s *marketServiceServer) PathPrefix() string {
+	return baseServicePath(s.pathPrefix, "market", "MarketService")
+}
+
+// ======================
+// AdminService Interface
+// ======================
+
+type AdminService interface {
+	// Only admins can create markets, securities, etc. Maybe thsi can be extended
+	// to other players.
+	CreateMarket(context.Context, *CreateMarketRequest) (*CreateMarketResponse, error)
+
+	OpenMarket(context.Context, *OpenMarketRequest) (*AdminServiceResponse, error)
+
+	DeleteMarket(context.Context, *DeleteMarketRequest) (*AdminServiceResponse, error)
+
+	AddSecurities(context.Context, *AddSecuritiesRequest) (*AdminServiceResponse, error)
+
+	DeleteSecurity(context.Context, *DeleteSecurityRequest) (*AdminServiceResponse, error)
+
+	// This one will involve a big transaction:
+	ResolveMarket(context.Context, *ResolveMarketRequest) (*ResolveMarketResponse, error)
+}
+
+// ============================
+// AdminService Protobuf Client
+// ============================
+
+type adminServiceProtobufClient struct {
+	client      HTTPClient
+	urls        [6]string
+	interceptor twirp.Interceptor
+	opts        twirp.ClientOptions
+}
+
+// NewAdminServiceProtobufClient creates a Protobuf client that implements the AdminService interface.
+// It communicates using Protobuf and can be configured with a custom HTTPClient.
+func NewAdminServiceProtobufClient(baseURL string, client HTTPClient, opts ...twirp.ClientOption) AdminService {
+	if c, ok := client.(*http.Client); ok {
+		client = withoutRedirects(c)
+	}
+
+	clientOpts := twirp.ClientOptions{}
+	for _, o := range opts {
+		o(&clientOpts)
+	}
+
+	// Using ReadOpt allows backwards and forwads compatibility with new options in the future
+	literalURLs := false
+	_ = clientOpts.ReadOpt("literalURLs", &literalURLs)
+	var pathPrefix string
+	if ok := clientOpts.ReadOpt("pathPrefix", &pathPrefix); !ok {
+		pathPrefix = "/twirp" // default prefix
+	}
+
+	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
+	serviceURL := sanitizeBaseURL(baseURL)
+	serviceURL += baseServicePath(pathPrefix, "market", "AdminService")
+	urls := [6]string{
+		serviceURL + "CreateMarket",
+		serviceURL + "OpenMarket",
+		serviceURL + "DeleteMarket",
+		serviceURL + "AddSecurities",
+		serviceURL + "DeleteSecurity",
+		serviceURL + "ResolveMarket",
+	}
+
+	return &adminServiceProtobufClient{
+		client:      client,
+		urls:        urls,
+		interceptor: twirp.ChainInterceptors(clientOpts.Interceptors...),
+		opts:        clientOpts,
+	}
+}
+
+func (c *adminServiceProtobufClient) CreateMarket(ctx context.Context, in *CreateMarketRequest) (*CreateMarketResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "CreateMarket")
+	caller := c.callCreateMarket
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *CreateMarketRequest) (*CreateMarketResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*CreateMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*CreateMarketRequest) when calling interceptor")
+					}
+					return c.callCreateMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*CreateMarketResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*CreateMarketResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceProtobufClient) callCreateMarket(ctx context.Context, in *CreateMarketRequest) (*CreateMarketResponse, error) {
+	out := new(CreateMarketResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[0], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceProtobufClient) OpenMarket(ctx context.Context, in *OpenMarketRequest) (*AdminServiceResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "OpenMarket")
+	caller := c.callOpenMarket
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *OpenMarketRequest) (*AdminServiceResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenMarketRequest) when calling interceptor")
+					}
+					return c.callOpenMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceProtobufClient) callOpenMarket(ctx context.Context, in *OpenMarketRequest) (*AdminServiceResponse, error) {
+	out := new(AdminServiceResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceProtobufClient) DeleteMarket(ctx context.Context, in *DeleteMarketRequest) (*AdminServiceResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "DeleteMarket")
+	caller := c.callDeleteMarket
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *DeleteMarketRequest) (*AdminServiceResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*DeleteMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*DeleteMarketRequest) when calling interceptor")
+					}
+					return c.callDeleteMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceProtobufClient) callDeleteMarket(ctx context.Context, in *DeleteMarketRequest) (*AdminServiceResponse, error) {
+	out := new(AdminServiceResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[2], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceProtobufClient) AddSecurities(ctx context.Context, in *AddSecuritiesRequest) (*AdminServiceResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "AddSecurities")
+	caller := c.callAddSecurities
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *AddSecuritiesRequest) (*AdminServiceResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*AddSecuritiesRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*AddSecuritiesRequest) when calling interceptor")
+					}
+					return c.callAddSecurities(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceProtobufClient) callAddSecurities(ctx context.Context, in *AddSecuritiesRequest) (*AdminServiceResponse, error) {
+	out := new(AdminServiceResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[3], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceProtobufClient) DeleteSecurity(ctx context.Context, in *DeleteSecurityRequest) (*AdminServiceResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "DeleteSecurity")
+	caller := c.callDeleteSecurity
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *DeleteSecurityRequest) (*AdminServiceResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*DeleteSecurityRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*DeleteSecurityRequest) when calling interceptor")
+					}
+					return c.callDeleteSecurity(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceProtobufClient) callDeleteSecurity(ctx context.Context, in *DeleteSecurityRequest) (*AdminServiceResponse, error) {
+	out := new(AdminServiceResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceProtobufClient) ResolveMarket(ctx context.Context, in *ResolveMarketRequest) (*ResolveMarketResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "ResolveMarket")
+	caller := c.callResolveMarket
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *ResolveMarketRequest) (*ResolveMarketResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*ResolveMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*ResolveMarketRequest) when calling interceptor")
+					}
+					return c.callResolveMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*ResolveMarketResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*ResolveMarketResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceProtobufClient) callResolveMarket(ctx context.Context, in *ResolveMarketRequest) (*ResolveMarketResponse, error) {
+	out := new(ResolveMarketResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[5], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+// ========================
+// AdminService JSON Client
+// ========================
+
+type adminServiceJSONClient struct {
+	client      HTTPClient
+	urls        [6]string
+	interceptor twirp.Interceptor
+	opts        twirp.ClientOptions
+}
+
+// NewAdminServiceJSONClient creates a JSON client that implements the AdminService interface.
+// It communicates using JSON and can be configured with a custom HTTPClient.
+func NewAdminServiceJSONClient(baseURL string, client HTTPClient, opts ...twirp.ClientOption) AdminService {
+	if c, ok := client.(*http.Client); ok {
+		client = withoutRedirects(c)
+	}
+
+	clientOpts := twirp.ClientOptions{}
+	for _, o := range opts {
+		o(&clientOpts)
+	}
+
+	// Using ReadOpt allows backwards and forwads compatibility with new options in the future
+	literalURLs := false
+	_ = clientOpts.ReadOpt("literalURLs", &literalURLs)
+	var pathPrefix string
+	if ok := clientOpts.ReadOpt("pathPrefix", &pathPrefix); !ok {
+		pathPrefix = "/twirp" // default prefix
+	}
+
+	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
+	serviceURL := sanitizeBaseURL(baseURL)
+	serviceURL += baseServicePath(pathPrefix, "market", "AdminService")
+	urls := [6]string{
+		serviceURL + "CreateMarket",
+		serviceURL + "OpenMarket",
+		serviceURL + "DeleteMarket",
+		serviceURL + "AddSecurities",
+		serviceURL + "DeleteSecurity",
+		serviceURL + "ResolveMarket",
+	}
+
+	return &adminServiceJSONClient{
+		client:      client,
+		urls:        urls,
+		interceptor: twirp.ChainInterceptors(clientOpts.Interceptors...),
+		opts:        clientOpts,
+	}
+}
+
+func (c *adminServiceJSONClient) CreateMarket(ctx context.Context, in *CreateMarketRequest) (*CreateMarketResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "CreateMarket")
+	caller := c.callCreateMarket
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *CreateMarketRequest) (*CreateMarketResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*CreateMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*CreateMarketRequest) when calling interceptor")
+					}
+					return c.callCreateMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*CreateMarketResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*CreateMarketResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceJSONClient) callCreateMarket(ctx context.Context, in *CreateMarketRequest) (*CreateMarketResponse, error) {
+	out := new(CreateMarketResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[0], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceJSONClient) OpenMarket(ctx context.Context, in *OpenMarketRequest) (*AdminServiceResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "OpenMarket")
+	caller := c.callOpenMarket
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *OpenMarketRequest) (*AdminServiceResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenMarketRequest) when calling interceptor")
+					}
+					return c.callOpenMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceJSONClient) callOpenMarket(ctx context.Context, in *OpenMarketRequest) (*AdminServiceResponse, error) {
+	out := new(AdminServiceResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceJSONClient) DeleteMarket(ctx context.Context, in *DeleteMarketRequest) (*AdminServiceResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "DeleteMarket")
+	caller := c.callDeleteMarket
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *DeleteMarketRequest) (*AdminServiceResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*DeleteMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*DeleteMarketRequest) when calling interceptor")
+					}
+					return c.callDeleteMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceJSONClient) callDeleteMarket(ctx context.Context, in *DeleteMarketRequest) (*AdminServiceResponse, error) {
+	out := new(AdminServiceResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[2], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceJSONClient) AddSecurities(ctx context.Context, in *AddSecuritiesRequest) (*AdminServiceResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "AddSecurities")
+	caller := c.callAddSecurities
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *AddSecuritiesRequest) (*AdminServiceResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*AddSecuritiesRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*AddSecuritiesRequest) when calling interceptor")
+					}
+					return c.callAddSecurities(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceJSONClient) callAddSecurities(ctx context.Context, in *AddSecuritiesRequest) (*AdminServiceResponse, error) {
+	out := new(AdminServiceResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[3], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceJSONClient) DeleteSecurity(ctx context.Context, in *DeleteSecurityRequest) (*AdminServiceResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "DeleteSecurity")
+	caller := c.callDeleteSecurity
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *DeleteSecurityRequest) (*AdminServiceResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*DeleteSecurityRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*DeleteSecurityRequest) when calling interceptor")
+					}
+					return c.callDeleteSecurity(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceJSONClient) callDeleteSecurity(ctx context.Context, in *DeleteSecurityRequest) (*AdminServiceResponse, error) {
+	out := new(AdminServiceResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *adminServiceJSONClient) ResolveMarket(ctx context.Context, in *ResolveMarketRequest) (*ResolveMarketResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithMethodName(ctx, "ResolveMarket")
+	caller := c.callResolveMarket
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *ResolveMarketRequest) (*ResolveMarketResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*ResolveMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*ResolveMarketRequest) when calling interceptor")
+					}
+					return c.callResolveMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*ResolveMarketResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*ResolveMarketResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *adminServiceJSONClient) callResolveMarket(ctx context.Context, in *ResolveMarketRequest) (*ResolveMarketResponse, error) {
+	out := new(ResolveMarketResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[5], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+// ===========================
+// AdminService Server Handler
+// ===========================
+
+type adminServiceServer struct {
+	AdminService
+	interceptor      twirp.Interceptor
+	hooks            *twirp.ServerHooks
+	pathPrefix       string // prefix for routing
+	jsonSkipDefaults bool   // do not include unpopulated fields (default values) in the response
+	jsonCamelCase    bool   // JSON fields are serialized as lowerCamelCase rather than keeping the original proto names
+}
+
+// NewAdminServiceServer builds a TwirpServer that can be used as an http.Handler to handle
+// HTTP requests that are routed to the right method in the provided svc implementation.
+// The opts are twirp.ServerOption modifiers, for example twirp.WithServerHooks(hooks).
+func NewAdminServiceServer(svc AdminService, opts ...interface{}) TwirpServer {
+	serverOpts := newServerOpts(opts)
+
+	// Using ReadOpt allows backwards and forwads compatibility with new options in the future
+	jsonSkipDefaults := false
+	_ = serverOpts.ReadOpt("jsonSkipDefaults", &jsonSkipDefaults)
+	jsonCamelCase := false
+	_ = serverOpts.ReadOpt("jsonCamelCase", &jsonCamelCase)
+	var pathPrefix string
+	if ok := serverOpts.ReadOpt("pathPrefix", &pathPrefix); !ok {
+		pathPrefix = "/twirp" // default prefix
+	}
+
+	return &adminServiceServer{
+		AdminService:     svc,
+		hooks:            serverOpts.Hooks,
+		interceptor:      twirp.ChainInterceptors(serverOpts.Interceptors...),
+		pathPrefix:       pathPrefix,
+		jsonSkipDefaults: jsonSkipDefaults,
+		jsonCamelCase:    jsonCamelCase,
+	}
+}
+
+// writeError writes an HTTP response with a valid Twirp error format, and triggers hooks.
+// If err is not a twirp.Error, it will get wrapped with twirp.InternalErrorWith(err)
+func (s *adminServiceServer) writeError(ctx context.Context, resp http.ResponseWriter, err error) {
+	writeError(ctx, resp, err, s.hooks)
+}
+
+// handleRequestBodyError is used to handle error when the twirp server cannot read request
+func (s *adminServiceServer) handleRequestBodyError(ctx context.Context, resp http.ResponseWriter, msg string, err error) {
+	if context.Canceled == ctx.Err() {
+		s.writeError(ctx, resp, twirp.NewError(twirp.Canceled, "failed to read request: context canceled"))
+		return
+	}
+	if context.DeadlineExceeded == ctx.Err() {
+		s.writeError(ctx, resp, twirp.NewError(twirp.DeadlineExceeded, "failed to read request: deadline exceeded"))
+		return
+	}
+	s.writeError(ctx, resp, twirp.WrapError(malformedRequestError(msg), err))
+}
+
+// AdminServicePathPrefix is a convenience constant that may identify URL paths.
+// Should be used with caution, it only matches routes generated by Twirp Go clients,
+// with the default "/twirp" prefix and default CamelCase service and method names.
+// More info: https://twitchtv.github.io/twirp/docs/routing.html
+const AdminServicePathPrefix = "/twirp/market.AdminService/"
+
+func (s *adminServiceServer) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	ctx = ctxsetters.WithPackageName(ctx, "market")
+	ctx = ctxsetters.WithServiceName(ctx, "AdminService")
+	ctx = ctxsetters.WithResponseWriter(ctx, resp)
+
+	var err error
+	ctx, err = callRequestReceived(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	if req.Method != "POST" {
+		msg := fmt.Sprintf("unsupported method %q (only POST is allowed)", req.Method)
+		s.writeError(ctx, resp, badRouteError(msg, req.Method, req.URL.Path))
+		return
+	}
+
+	// Verify path format: [<prefix>]/<package>.<Service>/<Method>
+	prefix, pkgService, method := parseTwirpPath(req.URL.Path)
+	if pkgService != "market.AdminService" {
+		msg := fmt.Sprintf("no handler for path %q", req.URL.Path)
+		s.writeError(ctx, resp, badRouteError(msg, req.Method, req.URL.Path))
+		return
+	}
+	if prefix != s.pathPrefix {
+		msg := fmt.Sprintf("invalid path prefix %q, expected %q, on path %q", prefix, s.pathPrefix, req.URL.Path)
+		s.writeError(ctx, resp, badRouteError(msg, req.Method, req.URL.Path))
+		return
+	}
+
+	switch method {
+	case "CreateMarket":
+		s.serveCreateMarket(ctx, resp, req)
+		return
+	case "OpenMarket":
+		s.serveOpenMarket(ctx, resp, req)
+		return
+	case "DeleteMarket":
+		s.serveDeleteMarket(ctx, resp, req)
+		return
+	case "AddSecurities":
+		s.serveAddSecurities(ctx, resp, req)
+		return
+	case "DeleteSecurity":
+		s.serveDeleteSecurity(ctx, resp, req)
+		return
+	case "ResolveMarket":
+		s.serveResolveMarket(ctx, resp, req)
+		return
+	default:
+		msg := fmt.Sprintf("no handler for path %q", req.URL.Path)
+		s.writeError(ctx, resp, badRouteError(msg, req.Method, req.URL.Path))
+		return
+	}
+}
+
+func (s *adminServiceServer) serveCreateMarket(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveCreateMarketJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveCreateMarketProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *adminServiceServer) serveCreateMarketJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "CreateMarket")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(CreateMarketRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.AdminService.CreateMarket
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *CreateMarketRequest) (*CreateMarketResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*CreateMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*CreateMarketRequest) when calling interceptor")
+					}
+					return s.AdminService.CreateMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*CreateMarketResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*CreateMarketResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *CreateMarketResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *CreateMarketResponse and nil error while calling CreateMarket. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveCreateMarketProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "CreateMarket")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(CreateMarketRequest)
+	if err = proto.Unmarshal(buf, reqContent); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.AdminService.CreateMarket
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *CreateMarketRequest) (*CreateMarketResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*CreateMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*CreateMarketRequest) when calling interceptor")
+					}
+					return s.AdminService.CreateMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*CreateMarketResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*CreateMarketResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *CreateMarketResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *CreateMarketResponse and nil error while calling CreateMarket. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := proto.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveOpenMarket(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveOpenMarketJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveOpenMarketProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *adminServiceServer) serveOpenMarketJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "OpenMarket")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(OpenMarketRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.AdminService.OpenMarket
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *OpenMarketRequest) (*AdminServiceResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenMarketRequest) when calling interceptor")
+					}
+					return s.AdminService.OpenMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *AdminServiceResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *AdminServiceResponse and nil error while calling OpenMarket. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveOpenMarketProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "OpenMarket")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(OpenMarketRequest)
+	if err = proto.Unmarshal(buf, reqContent); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.AdminService.OpenMarket
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *OpenMarketRequest) (*AdminServiceResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenMarketRequest) when calling interceptor")
+					}
+					return s.AdminService.OpenMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *AdminServiceResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *AdminServiceResponse and nil error while calling OpenMarket. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := proto.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveDeleteMarket(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveDeleteMarketJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveDeleteMarketProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *adminServiceServer) serveDeleteMarketJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "DeleteMarket")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(DeleteMarketRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.AdminService.DeleteMarket
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *DeleteMarketRequest) (*AdminServiceResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*DeleteMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*DeleteMarketRequest) when calling interceptor")
+					}
+					return s.AdminService.DeleteMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *AdminServiceResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *AdminServiceResponse and nil error while calling DeleteMarket. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveDeleteMarketProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "DeleteMarket")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(DeleteMarketRequest)
+	if err = proto.Unmarshal(buf, reqContent); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.AdminService.DeleteMarket
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *DeleteMarketRequest) (*AdminServiceResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*DeleteMarketRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*DeleteMarketRequest) when calling interceptor")
+					}
+					return s.AdminService.DeleteMarket(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *AdminServiceResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *AdminServiceResponse and nil error while calling DeleteMarket. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := proto.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveAddSecurities(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveAddSecuritiesJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveAddSecuritiesProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *adminServiceServer) serveAddSecuritiesJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "AddSecurities")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(AddSecuritiesRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.AdminService.AddSecurities
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *AddSecuritiesRequest) (*AdminServiceResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*AddSecuritiesRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*AddSecuritiesRequest) when calling interceptor")
+					}
+					return s.AdminService.AddSecurities(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *AdminServiceResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *AdminServiceResponse and nil error while calling AddSecurities. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveAddSecuritiesProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "AddSecurities")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(AddSecuritiesRequest)
+	if err = proto.Unmarshal(buf, reqContent); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.AdminService.AddSecurities
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *AddSecuritiesRequest) (*AdminServiceResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*AddSecuritiesRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*AddSecuritiesRequest) when calling interceptor")
+					}
+					return s.AdminService.AddSecurities(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *AdminServiceResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *AdminServiceResponse and nil error while calling AddSecurities. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := proto.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveDeleteSecurity(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveDeleteSecurityJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveDeleteSecurityProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *adminServiceServer) serveDeleteSecurityJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "DeleteSecurity")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(DeleteSecurityRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.AdminService.DeleteSecurity
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *DeleteSecurityRequest) (*AdminServiceResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*DeleteSecurityRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*DeleteSecurityRequest) when calling interceptor")
+					}
+					return s.AdminService.DeleteSecurity(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *AdminServiceResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *AdminServiceResponse and nil error while calling DeleteSecurity. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveDeleteSecurityProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "DeleteSecurity")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(DeleteSecurityRequest)
+	if err = proto.Unmarshal(buf, reqContent); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.AdminService.DeleteSecurity
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *DeleteSecurityRequest) (*AdminServiceResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*DeleteSecurityRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*DeleteSecurityRequest) when calling interceptor")
+					}
+					return s.AdminService.DeleteSecurity(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*AdminServiceResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*AdminServiceResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *AdminServiceResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *AdminServiceResponse and nil error while calling DeleteSecurity. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := proto.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *adminServiceServer) serveResolveMarket(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
 	header := req.Header.Get("Content-Type")
 	i := strings.Index(header, ";")
 	if i == -1 {
@@ -2020,7 +3632,7 @@ func (s *marketServiceServer) serveResolveMarket(ctx context.Context, resp http.
 	}
 }
 
-func (s *marketServiceServer) serveResolveMarketJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+func (s *adminServiceServer) serveResolveMarketJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx = ctxsetters.WithMethodName(ctx, "ResolveMarket")
 	ctx, err = callRequestRouted(ctx, s.hooks)
@@ -2042,7 +3654,7 @@ func (s *marketServiceServer) serveResolveMarketJSON(ctx context.Context, resp h
 		return
 	}
 
-	handler := s.MarketService.ResolveMarket
+	handler := s.AdminService.ResolveMarket
 	if s.interceptor != nil {
 		handler = func(ctx context.Context, req *ResolveMarketRequest) (*ResolveMarketResponse, error) {
 			resp, err := s.interceptor(
@@ -2051,7 +3663,7 @@ func (s *marketServiceServer) serveResolveMarketJSON(ctx context.Context, resp h
 					if !ok {
 						return nil, twirp.InternalError("failed type assertion req.(*ResolveMarketRequest) when calling interceptor")
 					}
-					return s.MarketService.ResolveMarket(ctx, typedReq)
+					return s.AdminService.ResolveMarket(ctx, typedReq)
 				},
 			)(ctx, req)
 			if resp != nil {
@@ -2103,7 +3715,7 @@ func (s *marketServiceServer) serveResolveMarketJSON(ctx context.Context, resp h
 	callResponseSent(ctx, s.hooks)
 }
 
-func (s *marketServiceServer) serveResolveMarketProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+func (s *adminServiceServer) serveResolveMarketProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx = ctxsetters.WithMethodName(ctx, "ResolveMarket")
 	ctx, err = callRequestRouted(ctx, s.hooks)
@@ -2123,7 +3735,7 @@ func (s *marketServiceServer) serveResolveMarketProtobuf(ctx context.Context, re
 		return
 	}
 
-	handler := s.MarketService.ResolveMarket
+	handler := s.AdminService.ResolveMarket
 	if s.interceptor != nil {
 		handler = func(ctx context.Context, req *ResolveMarketRequest) (*ResolveMarketResponse, error) {
 			resp, err := s.interceptor(
@@ -2132,7 +3744,7 @@ func (s *marketServiceServer) serveResolveMarketProtobuf(ctx context.Context, re
 					if !ok {
 						return nil, twirp.InternalError("failed type assertion req.(*ResolveMarketRequest) when calling interceptor")
 					}
-					return s.MarketService.ResolveMarket(ctx, typedReq)
+					return s.AdminService.ResolveMarket(ctx, typedReq)
 				},
 			)(ctx, req)
 			if resp != nil {
@@ -2182,19 +3794,19 @@ func (s *marketServiceServer) serveResolveMarketProtobuf(ctx context.Context, re
 	callResponseSent(ctx, s.hooks)
 }
 
-func (s *marketServiceServer) ServiceDescriptor() ([]byte, int) {
-	return twirpFileDescriptor0, 0
+func (s *adminServiceServer) ServiceDescriptor() ([]byte, int) {
+	return twirpFileDescriptor0, 1
 }
 
-func (s *marketServiceServer) ProtocGenTwirpVersion() string {
+func (s *adminServiceServer) ProtocGenTwirpVersion() string {
 	return "v8.1.2"
 }
 
 // PathPrefix returns the base service path, in the form: "/<prefix>/<package>.<Service>/"
 // that is everything in a Twirp route except for the <Method>. This can be used for routing,
 // for example to identify the requests that are targeted to this service in a mux.
-func (s *marketServiceServer) PathPrefix() string {
-	return baseServicePath(s.pathPrefix, "market", "MarketService")
+func (s *adminServiceServer) PathPrefix() string {
+	return baseServicePath(s.pathPrefix, "market", "AdminService")
 }
 
 // =====
@@ -2760,62 +4372,76 @@ func callClientError(ctx context.Context, h *twirp.ClientHooks, err twirp.Error)
 }
 
 var twirpFileDescriptor0 = []byte{
-	// 904 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x56, 0xdd, 0x6e, 0xdb, 0x36,
-	0x14, 0x1e, 0xfd, 0xaf, 0xe3, 0x24, 0x4b, 0xb8, 0x34, 0x51, 0xdd, 0xba, 0x75, 0x05, 0x0c, 0x30,
-	0x8a, 0xd5, 0xde, 0xd2, 0x61, 0x17, 0xbb, 0xab, 0xd3, 0x2e, 0x28, 0x90, 0xc1, 0x85, 0x8c, 0x5e,
-	0x6c, 0x37, 0x86, 0x2c, 0xb1, 0x09, 0x11, 0x59, 0x54, 0x49, 0xaa, 0x80, 0x9f, 0x64, 0x2f, 0xb0,
-	0xbd, 0xcc, 0x2e, 0xf7, 0x14, 0x7b, 0x8c, 0x41, 0x24, 0xf5, 0x5f, 0x23, 0xc3, 0x76, 0x15, 0xf1,
-	0x9c, 0xc3, 0xc3, 0xef, 0xfb, 0xce, 0x47, 0x3a, 0x80, 0x63, 0xce, 0x24, 0x9b, 0x6f, 0x3d, 0x7e,
-	0x47, 0xe4, 0x4c, 0x2d, 0x70, 0x4f, 0xaf, 0x9c, 0xdf, 0x10, 0xf4, 0x7e, 0x56, 0x9f, 0xf8, 0x08,
-	0x5a, 0x34, 0xb0, 0xd1, 0x04, 0x4d, 0x2d, 0xb7, 0x45, 0x03, 0x3c, 0x81, 0x61, 0x40, 0x84, 0xcf,
-	0x69, 0x2c, 0x29, 0x8b, 0xec, 0x96, 0x4a, 0x94, 0x43, 0xf8, 0x19, 0x1c, 0x04, 0x9e, 0x24, 0x6b,
-	0x9f, 0x13, 0x4f, 0x92, 0xc0, 0x6e, 0x9b, 0x12, 0x4f, 0x92, 0x4b, 0x1d, 0xc2, 0x4f, 0x61, 0xa8,
-	0x4b, 0x42, 0x26, 0x48, 0x60, 0x77, 0x54, 0x05, 0xa8, 0x0a, 0x15, 0xc1, 0xe7, 0xd0, 0xa7, 0x62,
-	0xcd, 0x62, 0x12, 0xd9, 0xdd, 0x09, 0x9a, 0x0e, 0xdc, 0x1e, 0x15, 0xcb, 0x98, 0x44, 0xce, 0xdf,
-	0x08, 0x06, 0x2b, 0xe2, 0x27, 0x9c, 0xca, 0xdd, 0x7f, 0xc0, 0xf6, 0x18, 0x2c, 0x71, 0xcb, 0xb8,
-	0x8c, 0xbc, 0x2d, 0x31, 0xc0, 0x8a, 0x40, 0x03, 0x79, 0xa7, 0x89, 0xfc, 0x11, 0x58, 0x5a, 0xa3,
-	0x35, 0x0d, 0x14, 0x34, 0xcb, 0x1d, 0xe8, 0xc0, 0xdb, 0x00, 0xbf, 0x00, 0x2c, 0x6e, 0x3d, 0x4e,
-	0xc4, 0x9a, 0x25, 0x52, 0x48, 0x2f, 0x0a, 0x68, 0x74, 0x63, 0xf7, 0x26, 0x68, 0x8a, 0xdc, 0x13,
-	0x9d, 0x59, 0x16, 0x09, 0x3c, 0x06, 0x08, 0x3d, 0x21, 0xd7, 0x31, 0xa7, 0x3e, 0xb1, 0xfb, 0xaa,
-	0xcc, 0x4a, 0x23, 0xef, 0xd2, 0x80, 0xf3, 0x17, 0x82, 0xee, 0x92, 0x07, 0x84, 0x37, 0x78, 0x8e,
-	0x60, 0x90, 0x08, 0xc2, 0x15, 0x09, 0x4d, 0x32, 0x5f, 0xa7, 0xd2, 0x0a, 0xa3, 0x4f, 0x0a, 0x51,
-	0x73, 0x84, 0x2c, 0x64, 0x40, 0x66, 0x05, 0x85, 0x16, 0x9a, 0xea, 0x49, 0x96, 0x59, 0xe5, 0x9a,
-	0x9c, 0x41, 0xcf, 0xdb, 0xb2, 0x24, 0x92, 0x8a, 0x2d, 0x72, 0xcd, 0x0a, 0x63, 0xe8, 0xf8, 0x4c,
-	0x48, 0xc3, 0x4e, 0x7d, 0x37, 0xf4, 0xeb, 0x37, 0xf4, 0x73, 0x3e, 0x82, 0xf5, 0x8e, 0x71, 0xf9,
-	0x81, 0x85, 0x94, 0x55, 0x78, 0xa0, 0x1a, 0x8f, 0x33, 0xe8, 0x49, 0x76, 0x47, 0x22, 0xa1, 0x18,
-	0x22, 0xd7, 0xac, 0xf0, 0xb7, 0x90, 0x91, 0xa1, 0x44, 0xd8, 0xed, 0x49, 0x7b, 0x3a, 0xbc, 0x38,
-	0x9e, 0x19, 0x17, 0x67, 0xce, 0x70, 0x4b, 0x35, 0xce, 0xef, 0x08, 0xbe, 0xba, 0x22, 0x52, 0x49,
-	0xb9, 0x60, 0xec, 0xce, 0x25, 0x1f, 0x13, 0x22, 0x64, 0x75, 0x94, 0xa8, 0x36, 0xca, 0x9a, 0x8c,
-	0xad, 0x86, 0x8c, 0x65, 0xec, 0xed, 0x1a, 0xf6, 0x31, 0x80, 0xa0, 0x91, 0x4f, 0xd6, 0x29, 0x73,
-	0x23, 0xad, 0xa5, 0x22, 0xaf, 0x3d, 0x49, 0xf0, 0x29, 0x74, 0x43, 0xba, 0xa5, 0x5a, 0xd1, 0xae,
-	0xab, 0x17, 0xce, 0x8f, 0x70, 0x52, 0x82, 0x28, 0x62, 0x16, 0x09, 0x82, 0xbf, 0x86, 0x1e, 0x4b,
-	0x83, 0xc2, 0x46, 0x8a, 0xe9, 0x61, 0xc6, 0x54, 0x95, 0xba, 0x26, 0xe9, 0xfc, 0x89, 0xe0, 0xcb,
-	0x9c, 0xbb, 0xa1, 0xf7, 0x0a, 0x86, 0x9b, 0x64, 0xb7, 0x66, 0x7c, 0x2d, 0x48, 0x18, 0x2a, 0x82,
-	0x47, 0x17, 0xcf, 0x1a, 0x4a, 0xe9, 0xea, 0xd9, 0x22, 0xd9, 0x2d, 0xf9, 0x8a, 0x84, 0xa1, 0x6b,
-	0x6d, 0xb2, 0xcf, 0xd2, 0xec, 0x5b, 0x95, 0xd9, 0xdf, 0xeb, 0xb1, 0x8a, 0xb4, 0x9d, 0xaa, 0xb4,
-	0xce, 0x13, 0xb0, 0xf2, 0xd3, 0x70, 0x1f, 0xda, 0x8b, 0xf7, 0xbf, 0x1c, 0x7f, 0x81, 0x07, 0xd0,
-	0x59, 0xbd, 0xb9, 0xbe, 0x3e, 0x46, 0xce, 0x73, 0x38, 0xd5, 0x6f, 0xcf, 0x2b, 0x3f, 0xbd, 0xb3,
-	0xb9, 0x16, 0x99, 0xe3, 0x50, 0xe1, 0x38, 0xe7, 0x25, 0x9c, 0xba, 0x44, 0xb0, 0xf0, 0x13, 0xd1,
-	0x5b, 0xfe, 0xcd, 0x6c, 0x9d, 0x73, 0x78, 0x50, 0xdb, 0xa4, 0x4f, 0x48, 0x13, 0xa9, 0x51, 0x62,
-	0x12, 0xe9, 0x84, 0x30, 0xed, 0x9c, 0x05, 0x9c, 0xd5, 0x13, 0x06, 0xd4, 0x14, 0xfa, 0xba, 0xaf,
-	0x50, 0xc7, 0x0c, 0x2f, 0x8e, 0x32, 0x85, 0x4d, 0xef, 0x2c, 0xed, 0x3c, 0x50, 0x2e, 0xcc, 0xcd,
-	0x9f, 0xb5, 0xbe, 0x82, 0xd3, 0x6a, 0xd8, 0x34, 0x9e, 0x83, 0x15, 0x67, 0x41, 0xd3, 0xfa, 0x24,
-	0x6b, 0x5d, 0x54, 0x17, 0x35, 0x8e, 0x84, 0xf3, 0x2b, 0x22, 0xb3, 0xb9, 0x5e, 0x32, 0x91, 0xc3,
-	0xaf, 0xcf, 0x0b, 0x35, 0xe6, 0x35, 0x06, 0xd8, 0x90, 0x1b, 0x1a, 0x69, 0xc3, 0x6a, 0xb3, 0x5b,
-	0x2a, 0xa2, 0x0c, 0xfb, 0x10, 0x06, 0x24, 0x0a, 0x74, 0x52, 0x0f, 0xbb, 0x4f, 0xa2, 0x20, 0x4d,
-	0xa5, 0xbf, 0x14, 0x76, 0xf3, 0x58, 0xc3, 0xe1, 0x12, 0xba, 0xe9, 0x94, 0x32, 0xf3, 0xbe, 0xc8,
-	0xf0, 0xef, 0xdb, 0x30, 0x2b, 0x47, 0x5d, 0xbd, 0x77, 0xf4, 0x03, 0x1c, 0x94, 0xc3, 0xa9, 0x0d,
-	0x14, 0x10, 0xcd, 0x42, 0x7d, 0xe7, 0xd6, 0x68, 0x15, 0xd6, 0xb8, 0xf8, 0xa3, 0x03, 0x87, 0x7a,
-	0x06, 0x2b, 0xc2, 0x3f, 0x51, 0x9f, 0xe0, 0x9f, 0xe0, 0xa0, 0xfc, 0x0e, 0xe0, 0x47, 0x25, 0x3c,
-	0xf5, 0xd7, 0x61, 0xf4, 0xb0, 0x72, 0xd3, 0x2a, 0x97, 0x72, 0x09, 0x47, 0x55, 0x37, 0xe0, 0x71,
-	0xb9, 0x53, 0xc3, 0x3e, 0xa3, 0x27, 0xfb, 0xd2, 0xa6, 0xe1, 0x6b, 0x18, 0x2e, 0x92, 0x5d, 0xfe,
-	0xb3, 0x76, 0xbe, 0xe7, 0x92, 0x8e, 0x1e, 0x57, 0xbd, 0x55, 0xbb, 0x1f, 0x6f, 0x52, 0xa1, 0xc2,
-	0xf0, 0xff, 0xb6, 0x79, 0xab, 0x54, 0x2a, 0x1e, 0xe9, 0xb2, 0x4a, 0x75, 0xf7, 0x16, 0xad, 0x3e,
-	0xeb, 0xe1, 0xf7, 0x70, 0x5c, 0x1f, 0x35, 0x7e, 0xba, 0xdf, 0x04, 0xba, 0xe5, 0xe4, 0x3e, 0x97,
-	0xe0, 0x6b, 0x38, 0xac, 0xdc, 0x5f, 0x9c, 0xa3, 0xf8, 0xdc, 0x5b, 0x30, 0x1a, 0xef, 0xc9, 0xea,
-	0x6e, 0x8b, 0x6f, 0x7e, 0x7d, 0x7e, 0x43, 0xe5, 0x6d, 0xb2, 0x99, 0xf9, 0x6c, 0x3b, 0x0f, 0xd8,
-	0x96, 0x46, 0xec, 0xbb, 0xef, 0xe7, 0xc2, 0xe7, 0xde, 0xe6, 0x43, 0x22, 0x13, 0x4e, 0xc4, 0x9c,
-	0xc7, 0xfe, 0x5c, 0xfd, 0x87, 0xb4, 0xe9, 0xa9, 0x3f, 0x2f, 0xff, 0x09, 0x00, 0x00, 0xff, 0xff,
-	0x95, 0xf9, 0xc3, 0x31, 0x3e, 0x09, 0x00, 0x00,
+	// 1131 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x57, 0xdd, 0x6e, 0x1b, 0x45,
+	0x14, 0x66, 0x6c, 0xc7, 0x3f, 0xc7, 0x49, 0x48, 0x26, 0x4e, 0xe2, 0xba, 0x49, 0xeb, 0x2e, 0x0a,
+	0x8a, 0x2a, 0x1a, 0x43, 0x40, 0x20, 0x71, 0x17, 0x27, 0x21, 0x0a, 0xa4, 0x4a, 0x59, 0xab, 0x17,
+	0x70, 0x63, 0xad, 0x77, 0xa7, 0xc9, 0x28, 0xeb, 0x1d, 0x77, 0x67, 0xb6, 0x28, 0x4f, 0xc2, 0x0b,
+	0xf0, 0x2c, 0x5c, 0x70, 0x07, 0x12, 0xe2, 0x15, 0x78, 0x0c, 0xb4, 0xf3, 0xe3, 0xdd, 0x9d, 0x75,
+	0x6a, 0x04, 0x57, 0xdd, 0x39, 0x73, 0xe6, 0xf8, 0xfb, 0xbe, 0x73, 0xe6, 0x9b, 0x06, 0xf0, 0x2c,
+	0x66, 0x82, 0x0d, 0xa6, 0x5e, 0x7c, 0x47, 0xc4, 0x91, 0x5c, 0xe0, 0xba, 0x5a, 0x39, 0x3f, 0x23,
+	0xa8, 0xbf, 0x94, 0x9f, 0x78, 0x1d, 0x2a, 0x34, 0xe8, 0xa2, 0x3e, 0x3a, 0x6c, 0xb9, 0x15, 0x1a,
+	0xe0, 0x3e, 0xb4, 0x03, 0xc2, 0xfd, 0x98, 0xce, 0x04, 0x65, 0x51, 0xb7, 0x22, 0x37, 0xf2, 0x21,
+	0xfc, 0x0c, 0x56, 0x03, 0x4f, 0x90, 0xb1, 0x1f, 0x13, 0x4f, 0x90, 0xa0, 0x5b, 0xd5, 0x29, 0x9e,
+	0x20, 0xa7, 0x2a, 0x84, 0x9f, 0x42, 0x5b, 0xa5, 0x84, 0x8c, 0x93, 0xa0, 0x5b, 0x93, 0x19, 0x20,
+	0x33, 0x64, 0x04, 0xef, 0x42, 0x83, 0xf2, 0x31, 0x9b, 0x91, 0xa8, 0xbb, 0xd2, 0x47, 0x87, 0x4d,
+	0xb7, 0x4e, 0xf9, 0xf5, 0x8c, 0x44, 0xce, 0xdf, 0x08, 0x9a, 0x23, 0xe2, 0x27, 0x31, 0x15, 0xf7,
+	0xff, 0x01, 0xdb, 0x1e, 0xb4, 0xf8, 0x2d, 0x8b, 0x45, 0xe4, 0x4d, 0x89, 0x06, 0x96, 0x05, 0x4a,
+	0xc8, 0x6b, 0x65, 0xe4, 0x8f, 0xa1, 0xa5, 0x34, 0x1a, 0xd3, 0x40, 0x42, 0x6b, 0xb9, 0x4d, 0x15,
+	0xb8, 0x0c, 0xf0, 0x0b, 0xc0, 0xfc, 0xd6, 0x8b, 0x09, 0x1f, 0xb3, 0x44, 0x70, 0xe1, 0x45, 0x01,
+	0x8d, 0x6e, 0xba, 0xf5, 0x3e, 0x3a, 0x44, 0xee, 0xa6, 0xda, 0xb9, 0xce, 0x36, 0xf0, 0x3e, 0x40,
+	0xe8, 0x71, 0x31, 0x9e, 0xc5, 0xd4, 0x27, 0xdd, 0x86, 0x4c, 0x6b, 0xa5, 0x91, 0x57, 0x69, 0xc0,
+	0xf9, 0x03, 0xc1, 0xca, 0x75, 0x1c, 0x90, 0xb8, 0xc4, 0xb3, 0x07, 0xcd, 0x84, 0x93, 0x58, 0x92,
+	0x50, 0x24, 0xe7, 0xeb, 0x54, 0x5a, 0xae, 0xf5, 0x49, 0x21, 0x2a, 0x8e, 0x60, 0x42, 0x1a, 0xa4,
+	0x49, 0xc8, 0xb4, 0x50, 0x54, 0x37, 0xcd, 0xce, 0x68, 0xae, 0xc9, 0x0e, 0xd4, 0xbd, 0x29, 0x4b,
+	0x22, 0x21, 0xd9, 0x22, 0x57, 0xaf, 0x30, 0x86, 0x9a, 0xcf, 0xb8, 0xd0, 0xec, 0xe4, 0x77, 0x49,
+	0xbf, 0x46, 0x49, 0x3f, 0xe7, 0x2d, 0xb4, 0x5e, 0xb1, 0x58, 0xbc, 0x61, 0x21, 0x65, 0x05, 0x1e,
+	0xc8, 0xe2, 0xb1, 0x03, 0x75, 0xc1, 0xee, 0x48, 0xc4, 0x25, 0x43, 0xe4, 0xea, 0x15, 0xfe, 0x14,
+	0x0c, 0x19, 0x4a, 0x78, 0xb7, 0xda, 0xaf, 0x1e, 0xb6, 0x8f, 0x37, 0x8e, 0xf4, 0x14, 0x9b, 0xc9,
+	0x70, 0x73, 0x39, 0xce, 0x2f, 0x08, 0xb6, 0x2e, 0x88, 0x90, 0x52, 0x0e, 0x19, 0xbb, 0x73, 0xc9,
+	0xdb, 0x84, 0x70, 0x51, 0x6c, 0x25, 0xb2, 0x5a, 0x69, 0xc9, 0x58, 0x29, 0xc9, 0x98, 0xc7, 0x5e,
+	0xb5, 0xb0, 0xef, 0x03, 0x70, 0x1a, 0xf9, 0x64, 0x9c, 0x32, 0xd7, 0xd2, 0xb6, 0x64, 0xe4, 0xcc,
+	0x13, 0x04, 0x77, 0x60, 0x25, 0xa4, 0x53, 0xaa, 0x14, 0x5d, 0x71, 0xd5, 0xc2, 0xf9, 0x1a, 0x36,
+	0x73, 0x10, 0xf9, 0x8c, 0x45, 0x9c, 0xe0, 0x03, 0xa8, 0xb3, 0x34, 0xc8, 0xbb, 0x48, 0x32, 0x5d,
+	0x33, 0x4c, 0x65, 0xaa, 0xab, 0x37, 0x9d, 0xdf, 0x10, 0x7c, 0x38, 0xe7, 0xae, 0xe9, 0x9d, 0x40,
+	0x7b, 0x92, 0xdc, 0x8f, 0x59, 0x3c, 0xe6, 0x24, 0x0c, 0x25, 0xc1, 0xf5, 0xe3, 0x67, 0x25, 0xa5,
+	0x54, 0xf6, 0xd1, 0x30, 0xb9, 0xbf, 0x8e, 0x47, 0x24, 0x0c, 0xdd, 0xd6, 0xc4, 0x7c, 0xe6, 0x7a,
+	0x5f, 0x29, 0xf4, 0x7e, 0xe9, 0x8c, 0x15, 0xa4, 0xad, 0x15, 0xa5, 0x75, 0x9e, 0x40, 0x6b, 0xfe,
+	0x6b, 0xb8, 0x01, 0xd5, 0xe1, 0xeb, 0x1f, 0x36, 0x3e, 0xc0, 0x4d, 0xa8, 0x8d, 0xce, 0xaf, 0xae,
+	0x36, 0x90, 0xf3, 0x1c, 0x3a, 0xca, 0x7b, 0x4e, 0xfc, 0xf4, 0xce, 0xce, 0xb5, 0x30, 0x13, 0x87,
+	0xb2, 0x89, 0x73, 0x76, 0x61, 0x3b, 0x6d, 0xed, 0x8c, 0x44, 0xea, 0x08, 0xd7, 0x7c, 0x9c, 0x21,
+	0xec, 0xd8, 0x1b, 0xba, 0xcc, 0x21, 0x34, 0x14, 0x14, 0x2e, 0x2b, 0xb5, 0x8f, 0xd7, 0x8d, 0x26,
+	0x2a, 0xd3, 0x35, 0xdb, 0xce, 0xb6, 0x9c, 0x9b, 0xf9, 0xb8, 0x9a, 0xd2, 0x17, 0xd0, 0x29, 0x86,
+	0x75, 0xe1, 0x01, 0xb4, 0x66, 0x26, 0xa8, 0x4b, 0x6f, 0x9a, 0xd2, 0x59, 0x76, 0x96, 0xe3, 0x08,
+	0xd8, 0xbd, 0x20, 0xc2, 0x74, 0xe2, 0x94, 0xf1, 0x39, 0x7c, 0x5b, 0x61, 0x54, 0x52, 0x78, 0x1f,
+	0x60, 0x42, 0x6e, 0x68, 0xa4, 0x46, 0x4c, 0x8d, 0x67, 0x4b, 0x46, 0xe4, 0x88, 0x3d, 0x82, 0x26,
+	0x89, 0x02, 0xb5, 0xa9, 0xda, 0xd3, 0x20, 0x51, 0x90, 0x6e, 0xa5, 0xde, 0xde, 0x2d, 0xff, 0xac,
+	0xe6, 0x70, 0x0a, 0x2b, 0xa9, 0xae, 0x66, 0xdc, 0x5e, 0x18, 0xfc, 0x0f, 0x1d, 0x38, 0xca, 0x47,
+	0x5d, 0x75, 0xb6, 0xf7, 0x25, 0xac, 0xe6, 0xc3, 0x69, 0xe3, 0x24, 0x10, 0xc5, 0x42, 0x7e, 0xcf,
+	0x9b, 0x59, 0xc9, 0x35, 0xf3, 0x2b, 0xd8, 0x52, 0x36, 0xa1, 0x1b, 0xa1, 0xb5, 0xb0, 0x5c, 0x1d,
+	0x95, 0x5c, 0xdd, 0xf9, 0x18, 0x3a, 0xc5, 0x83, 0x9a, 0x8d, 0xe5, 0x9b, 0xce, 0x47, 0xb0, 0x99,
+	0x4d, 0x84, 0x29, 0x6f, 0x27, 0xed, 0x40, 0xe7, 0x24, 0x98, 0xd2, 0x68, 0x44, 0xe2, 0x77, 0xd4,
+	0x27, 0xa6, 0x98, 0x73, 0x00, 0x5b, 0x67, 0x24, 0x24, 0x36, 0x3a, 0xfb, 0xf8, 0xaf, 0x28, 0x3d,
+	0x1f, 0x8c, 0xe6, 0xfe, 0xf3, 0xaf, 0xec, 0xe6, 0xbc, 0xe0, 0x6a, 0x15, 0x29, 0xfe, 0x81, 0x11,
+	0x7f, 0x51, 0xb9, 0x85, 0x56, 0xd7, 0xfb, 0x36, 0xf7, 0x38, 0x2e, 0x95, 0xad, 0xf8, 0x18, 0x56,
+	0xac, 0xc7, 0xd0, 0x39, 0x83, 0x6d, 0xc5, 0xd7, 0x36, 0x16, 0xfb, 0x35, 0x2a, 0x10, 0xab, 0x58,
+	0x97, 0xfd, 0x77, 0x04, 0x1d, 0x97, 0x70, 0x16, 0xbe, 0xb3, 0x74, 0x7b, 0xaf, 0x1c, 0xdf, 0x43,
+	0x3b, 0x4e, 0x0f, 0x25, 0x29, 0x4e, 0xa3, 0xc7, 0xc0, 0xe8, 0xb1, 0xa8, 0x5e, 0xce, 0xd0, 0xcc,
+	0x39, 0x37, 0x5f, 0xa3, 0x77, 0x09, 0xb8, 0x9c, 0xb2, 0xfc, 0x9e, 0x61, 0xa8, 0xfd, 0x44, 0xf5,
+	0x23, 0xd4, 0x74, 0xe5, 0x77, 0x6a, 0x3a, 0x16, 0x04, 0x35, 0x22, 0xc7, 0x7f, 0x55, 0x61, 0x4d,
+	0x85, 0xf4, 0xf0, 0xe0, 0x6f, 0x60, 0x35, 0xff, 0xf4, 0xe0, 0xc7, 0xb9, 0x0b, 0x65, 0x3f, 0x48,
+	0xbd, 0x47, 0x05, 0x73, 0x2f, 0xbc, 0x03, 0xd7, 0xb0, 0x5e, 0xb4, 0x33, 0xbc, 0x9f, 0xaf, 0x54,
+	0xf2, 0xbf, 0xde, 0x93, 0x87, 0xb6, 0x75, 0xc1, 0x33, 0x68, 0x0f, 0x93, 0xfb, 0xf9, 0xb0, 0xec,
+	0x3e, 0xf0, 0x2e, 0xf4, 0xf6, 0x8a, 0xe6, 0x68, 0x59, 0xf2, 0x79, 0x7a, 0xd3, 0xc3, 0xf0, 0xff,
+	0x96, 0xb9, 0x94, 0x2a, 0x65, 0xff, 0x2f, 0xc8, 0xab, 0x64, 0xdb, 0x6f, 0x56, 0x6a, 0xa1, 0x09,
+	0xbf, 0x86, 0x0d, 0xdb, 0xab, 0xf0, 0xd3, 0x87, 0x5d, 0x4c, 0x95, 0xec, 0x2f, 0xb3, 0xb9, 0xe3,
+	0x3f, 0xab, 0xb0, 0x9a, 0x77, 0x85, 0x14, 0x72, 0xde, 0x72, 0x32, 0xc8, 0x0b, 0x1c, 0x2c, 0x83,
+	0xbc, 0xd0, 0xa5, 0xce, 0x01, 0xb2, 0x0e, 0xe1, 0x6c, 0x08, 0x6c, 0xa7, 0xca, 0xca, 0x2c, 0xf2,
+	0xa7, 0x14, 0x51, 0xde, 0x9f, 0x32, 0x44, 0x0b, 0x5c, 0x6b, 0x49, 0xa9, 0xef, 0x60, 0xad, 0xe0,
+	0x39, 0x78, 0xef, 0x7d, 0x56, 0xb4, 0xa4, 0xd8, 0x4b, 0x58, 0x2f, 0xfa, 0x48, 0x36, 0xba, 0x0b,
+	0xfd, 0x65, 0x49, 0xb9, 0x2b, 0x58, 0x2b, 0x5c, 0xbe, 0x0c, 0xdb, 0x22, 0x5b, 0xe8, 0xed, 0x3f,
+	0xb0, 0xab, 0xaa, 0x0d, 0x3f, 0xf9, 0xf1, 0xf9, 0x0d, 0x15, 0xb7, 0xc9, 0xe4, 0xc8, 0x67, 0xd3,
+	0x41, 0xc0, 0xa6, 0x34, 0x62, 0x9f, 0x7d, 0x31, 0xe0, 0x7e, 0xec, 0x4d, 0xde, 0x24, 0x22, 0x89,
+	0x09, 0x1f, 0xc4, 0x33, 0x7f, 0x20, 0xff, 0x3c, 0x9a, 0xd4, 0xe5, 0x3f, 0x9f, 0xff, 0x13, 0x00,
+	0x00, 0xff, 0xff, 0x84, 0x90, 0x6c, 0xa6, 0x3b, 0x0d, 0x00, 0x00,
 }

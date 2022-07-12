@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS securities (
     market_id INTEGER,
     shares_outstanding REAL,
     last_price REAL,
-    FOREIGN KEY (market_id) REFERENCES markets(id)
+
+    CONSTRAINT fk_markets
+        FOREIGN KEY (market_id) REFERENCES markets(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS orders (

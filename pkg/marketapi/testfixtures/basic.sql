@@ -12,7 +12,7 @@ values
 
 INSERT INTO markets(id, uuid, description, date_created, is_open)
 values
-    (1, "nationals2022", "Nationals 2022", "2022-07-08T14:00:00Z", 1);
+    (1, "nationals2022", "Nationals 2022", "2022-07-08T14:00:00Z", 0);
 
 INSERT INTO securities(uuid, description, shortname, date_created, market_id, shares_outstanding, last_price)
 values

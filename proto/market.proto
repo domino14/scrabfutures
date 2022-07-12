@@ -60,10 +60,6 @@ message SecurityRequest {
 
 message MarketActionResponse { double cost = 1; }
 
-message ResolveMarketRequest { string market_id = 1; }
-
-message ResolveMarketResponse {}
-
 message GetOpenMarketsRequest {}
 
 message GetOpenMarketsResponse { Market markets = 1; }
@@ -93,6 +89,51 @@ service MarketService {
   rpc GetPortfolio(GetPortfolioRequest) returns (GetPortfolioResponse);
   rpc GetSecurityCosts(GetSecurityCostsRequest)
       returns (GetSecurityCostsResponse);
+}
+
+message CreateMarketRequest { string description = 1; }
+
+message CreateMarketResponse { string id = 1; }
+
+message OpenMarketRequest { string id = 1; }
+
+message AdminServiceResponse {}
+
+message DeleteMarketRequest { string id = 1; }
+
+message AddSecuritiesRequest {
+  message Security {
+    string description = 1;
+    string shortname = 2;
+  }
+  string market_id = 1;
+  repeated Security securities = 2;
+}
+
+message DeleteSecurityRequest {
+  string id = 1;
+  string market_id = 2;
+}
+
+message ResolveMarketRequest {
+  message SecurityResolution {
+    string security_id = 1;
+    bool wins = 2;
+  }
+  string market_id = 1;
+  repeated SecurityResolution resolutions = 2;
+}
+
+message ResolveMarketResponse {}
+
+service AdminService {
+  // Only admins can create markets, securities, etc. Maybe thsi can be extended
+  // to other players.
+  rpc CreateMarket(CreateMarketRequest) returns (CreateMarketResponse);
+  rpc OpenMarket(OpenMarketRequest) returns (AdminServiceResponse);
+  rpc DeleteMarket(DeleteMarketRequest) returns (AdminServiceResponse);
+  rpc AddSecurities(AddSecuritiesRequest) returns (AdminServiceResponse);
+  rpc DeleteSecurity(DeleteSecurityRequest) returns (AdminServiceResponse);
   // This one will involve a big transaction:
   rpc ResolveMarket(ResolveMarketRequest) returns (ResolveMarketResponse);
 }

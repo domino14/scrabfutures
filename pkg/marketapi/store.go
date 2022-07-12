@@ -112,6 +112,22 @@ func (s *SqliteStore) GetOrderBook(ctx context.Context, marketID string, securit
 	return orders, nil
 }
 
+func (s *SqliteStore) GetMarket(ctx context.Context, id string) (*pb.Market, error) {
+	market := &pb.Market{}
+	var dateClosed sql.NullString
+	err := s.db.QueryRowContext(ctx, `
+		SELECT description, date_created, is_open, date_closed
+		FROM markets
+		WHERE uuid = ?`, id).Scan(
+		&market.Description, &market.DateCreated, &market.IsOpen, &dateClosed)
+	if err != nil {
+		return nil, err
+	}
+	market.Id = id
+	market.DateClosed = dateClosed.String
+	return market, nil
+}
+
 func (s *SqliteStore) GetOpenMarkets(ctx context.Context) ([]*pb.Market, error) {
 
 	rows, err := s.db.QueryContext(ctx, `
@@ -128,14 +144,229 @@ func (s *SqliteStore) GetOpenMarkets(ctx context.Context) ([]*pb.Market, error) 
 
 	for rows.Next() {
 		market := &pb.Market{}
+		var dateClosed sql.NullString
 		err = rows.Scan(&market.Id, &market.Description,
-			&market.DateCreated, &market.DateClosed)
+			&market.DateCreated, &dateClosed)
 		if err != nil {
 			return nil, err
 		}
+		market.DateClosed = dateClosed.String // can be empty, that's ok.
+		market.IsOpen = true
 		markets = append(markets, market)
 	}
 	return markets, nil
+}
+
+func (s *SqliteStore) CreateMarket(ctx context.Context, description string) (string, error) {
+	id := shortuuid.New()
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO markets(uuid, description, date_created, is_open)
+		values(?, ?, ?, ?)
+	`, id, description, now(), 0)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (s *SqliteStore) OpenMarket(ctx context.Context, uuid string) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE markets SET is_open = 1 WHERE uuid = ?
+	`, uuid)
+	return err
+}
+
+func (s *SqliteStore) CloseMarket(ctx context.Context, uuid string) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE markets SET is_open = 0, date_closed = ? WHERE uuid = ?
+	`, now(), uuid)
+	return err
+}
+
+func (s *SqliteStore) DeleteMarket(ctx context.Context, uuid string) error {
+	m, err := s.GetMarket(ctx, uuid)
+	if err != nil {
+		return err
+	}
+	if m.IsOpen || m.DateClosed != "" {
+		// if this market was ever opened, then we cannot delete it.
+		return errors.New("disallowed deletion of market that was once open")
+	}
+	_, err = s.db.ExecContext(ctx, `DELETE FROM markets WHERE uuid = ?`, uuid)
+	return err
+}
+
+// AddSecurities adds one or more securities to a market. Securities cannot
+// be added once a market is opened.
+func (s *SqliteStore) AddSecurities(ctx context.Context, marketID string,
+	securities []*pb.AddSecuritiesRequest_Security) error {
+
+	m, err := s.GetMarket(ctx, marketID)
+	if err != nil {
+		return err
+	}
+	if m.IsOpen || m.DateClosed != "" {
+		return errors.New("disallowed adding of securities to market that was once open")
+	}
+
+	mdbid, err := s.dbid(ctx, "markets", "uuid", marketID)
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	addDate := now()
+
+	for _, sec := range securities {
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO securities(uuid, description, shortname, date_created,
+				market_id, shares_outstanding)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, shortuuid.New(), sec.Description, sec.Shortname, addDate, mdbid, 0.0)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Now edit all the prices...
+	err = s.editAllSecurityPrices(ctx, tx, mdbid)
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteSecurity deletes a security from a market. Securities cannot
+// be deleted once a market is opened.
+func (s *SqliteStore) DeleteSecurity(ctx context.Context, marketID string,
+	securityID string) error {
+
+	m, err := s.GetMarket(ctx, marketID)
+	if err != nil {
+		return err
+	}
+	if m.IsOpen || m.DateClosed != "" {
+		return errors.New("disallowed deletion of securities from market that was once open")
+	}
+
+	mdbid, err := s.dbid(ctx, "markets", "uuid", marketID)
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM securities WHERE uuid = ?`, securityID)
+	if err != nil {
+		return err
+	}
+
+	// Now edit all the prices...
+	err = s.editAllSecurityPrices(ctx, tx, mdbid)
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SqliteStore) editAllSecurityPrices(ctx context.Context, tx *sql.Tx, marketDBID int64) error {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT uuid, shares_outstanding
+		FROM securities
+		WHERE market_id = ? 
+		`, marketDBID)
+	if err != nil {
+		return err
+	}
+
+	allShares := []float64{}
+	allShareUUIDs := []string{}
+	defer rows.Close()
+	for rows.Next() {
+		var shares float64
+		var uuid string
+		err = rows.Scan(&uuid, &shares)
+		if err != nil {
+			return err
+		}
+		allShares = append(allShares, shares)
+		allShareUUIDs = append(allShareUUIDs, uuid)
+	}
+
+	// calculate new price for all shares in this market.
+	for idx := range allShares {
+		np := lmsr.Price(lmsr.Liquidity, allShares, idx)
+		_, err = tx.ExecContext(ctx, `
+			UPDATE securities 
+			SET last_price = ?
+			WHERE uuid = ?`, np, allShareUUIDs[idx])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *SqliteStore) GetSecurity(ctx context.Context, uuid string) (*pb.Security, error) {
+	security := &pb.Security{}
+	err := s.db.QueryRowContext(ctx, `
+		SELECT securities.description, shortname, securities.date_created, 
+			markets.uuid, shares_outstanding,last_price
+		FROM securities
+		JOIN markets 
+		ON securities.market_id = markets.id
+		WHERE securities.uuid = ?`, uuid).Scan(
+		&security.Description, &security.Shortname, &security.DateCreated,
+		&security.MarketId, &security.SharesOutstanding, &security.LastPrice)
+	if err != nil {
+		return nil, err
+	}
+	security.Id = uuid
+	return security, nil
+}
+
+func (s *SqliteStore) GetSecurities(ctx context.Context, marketID string) ([]*pb.Security, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT securities.uuid, securities.description, securities.shortname, 
+			securities.date_created, shares_outstanding,
+			last_price
+		FROM securities
+		JOIN markets ON securities.market_id = markets.id
+		WHERE markets.uuid = ?
+		`, marketID)
+	if err != nil {
+		return nil, err
+	}
+
+	securities := []*pb.Security{}
+	defer rows.Close()
+	for rows.Next() {
+		security := &pb.Security{}
+		err = rows.Scan(&security.Id, &security.Description, &security.Shortname,
+			&security.DateCreated, &security.SharesOutstanding, &security.LastPrice)
+		if err != nil {
+			return nil, err
+		}
+		securities = append(securities, security)
+	}
+	return securities, nil
 }
 
 func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
@@ -155,6 +386,14 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 	securityID, err := s.dbid(ctx, "securities", "uuid", securityUUID)
 	if err != nil {
 		return err
+	}
+
+	m, err := s.GetMarket(ctx, marketUUID)
+	if err != nil {
+		return err
+	}
+	if !m.IsOpen {
+		return errors.New("this market is closed")
 	}
 
 	conn, err := s.db.Conn(ctx)
@@ -217,7 +456,7 @@ func (s *SqliteStore) FulfillOrder(ctx context.Context, username string,
 	if err := conn.QueryRowContext(ctx, `
 		SELECT amount FROM portfolio_securities 
 		WHERE user_id = ? AND security_id = ?`,
-		userID, securityUUID).Scan(&heldSecurities); err != nil {
+		userID, securityID).Scan(&heldSecurities); err != nil {
 		if err == sql.ErrNoRows {
 			// this is ok, and not an error. ignore for now; we
 			// simply don't own this security yet.
